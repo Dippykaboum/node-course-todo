@@ -10,7 +10,9 @@ var todos = [{
     text: 'first test todo'
 }, {
     _id: new ObjectID(),
-    text: 'second test todo'
+    text: 'second test todo',
+    completed: true,
+    completedAt: 333
 }];
 
 beforeEach((done) => {
@@ -94,6 +96,82 @@ describe('Get /todos/:id', () => {
         request(app)
             .get('/todos/123456')
             .expect(404)
+            .end(done)
+    });
+});
+
+describe('DELETE /todo/:id', () => {
+    it('should delete specified todo', (done) => {
+        var hexid = todos[1]._id.toHexString();
+
+        request(app)
+            .delete(`/todos/${hexid}`)
+            .expect(200)
+            .expect((res) => {
+                expect(res.body.todo._id).toBe(hexid)
+            })
+            .end((e, res) => {
+                if (e) {
+                    return done(e)
+                }
+                Todo.findById(hexid).then((todo) => {
+                    expect(todo).toBeFalsy();
+                    done()
+                }).catch((e) => done(e))
+            });
+    });
+
+    it('should return 404 if id is not found', (done) => {
+        request(app)
+            .delete(`/todos/${new ObjectID().toHexString()}`)
+            .expect(404)
+            .end(done)
+    });
+
+    it('should return 404 if id is invalid', (done) => {
+        request(app)
+            .delete('/todos/123456')
+            .expect(404)
+            .end(done)
+    });
+});
+
+describe('PATCH /todos/:id', () => {
+    it('should update and complete the todo', (done) => {
+        var id = todos[0]._id.toHexString();
+        var data = {
+            text: 'The changed text',
+            completed: true
+        };
+
+        request(app)
+            .patch(`/todos/${id}`)
+            .send(data)
+            .expect(200)
+            .expect((res) => {
+                expect(res.body.todo.text).toBe(data.text);
+                expect(res.body.todo.completed).toBe(true);
+                expect(typeof res.body.todo.completedAt).toBe("number");
+            })
+            .end(done);
+    });
+
+    it('should decomplete a todo', (done) => {
+        var id = todos[1]._id.toHexString();
+        var data = {
+            text: 'The updated text',
+            completed: false
+        };
+
+        request(app)
+            .patch(`/todos/${id}`)
+            .send(data)
+            .expect(200)
+            .expect((res) => {
+                expect(res.body.todo.text).toBe(data.text);
+                expect(res.body.todo.completed).toBe(false);
+                expect(res.body.todo.completedAt).toBeNull();
+            })
             .end(done)
     });
 });
